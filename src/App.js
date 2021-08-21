@@ -1,74 +1,59 @@
-import React, { useRef, useState, Suspense } from "react";
-import { Canvas } from "@react-three/fiber";
-import { Environment, OrbitControls, useFBX } from "@react-three/drei";
-import {
-  Physics,
-  usePlane,
-  useBox,
-  useRaycastVehicle,
-} from "@react-three/cannon";
-import model from "./3d-assets/1920s.fbx";
-import "./styles/App.css";
-
-const Model = () => {
-  const fbx = useFBX(model);
-  return <primitive object={fbx} scale={0.05} />;
-};
-
-function Plane(props) {
-  const [ref] = usePlane(() => ({ rotation: [-Math.PI / 2, 0, 0], ...props }));
-  return (
-    <mesh ref={ref}>
-      <planeBufferGeometry args={[100, 100]} />
-    </mesh>
-  );
-}
-
-function Cube(props) {
-  const [ref] = useBox(() => ({
-    mass: 1,
-    position: [0, 5, 0],
-    rotation: [0.4, 0.2, 0.5],
-    ...props,
-  }));
-  return (
-    <mesh receiveShadow castShadow ref={ref}>
-      <boxBufferGeometry attach="geometry" />
-      <meshLambertMaterial attach="material" color="hotpink" />
-    </mesh>
-  );
-}
-
-const car = (props) => {
-  const [ref] = useRaycastVehicle(() => ({}));
-  return <mesh ref={ref}></mesh>;
-};
+import React, { Suspense } from 'react'
+import { Canvas } from '@react-three/fiber'
+import { Physics, useCylinder, usePlane } from '@react-three/cannon'
+import { OrbitControls, Environment } from '@react-three/drei'
+import Vehicle from './Vehicle'
 
 export default function App() {
   return (
-    <Canvas
-      shadowMap
-      sRGB
-      gl={{ alpha: false }}
-      camera={{ position: [-1, 2, 50], fov: 50 }}
-    >
-      <color attach="background" args={["lightblue"]} />
-      <hemisphereLight intensity={0.35} />
-      <spotLight
-        position={[10, 10, 10]}
-        angle={0.3}
-        penumbra={1}
-        intensity={2}
-        castShadow
-      />
-      <Physics>
-        <Model />
-        <Cube />
-        <Cube position={[0, 10, -2]} />
-        <Cube position={[0, 20, -2]} />
-        <Plane />
-      </Physics>
-      <OrbitControls />
-    </Canvas>
-  );
+    <>
+      <Canvas dpr={[1, 1.5]} shadows camera={{ position: [0, 5, 15], fov: 50 }}>
+        <fog attach="fog" args={['#171720', 10, 50]} />
+        <color attach="background" args={['#171720']} />
+        <ambientLight intensity={0.1} />
+        <spotLight position={[10, 10, 10]} angle={0.5} intensity={1} castShadow penumbra={1} />
+        <Physics broadphase="SAP" contactEquationRelaxation={4} friction={1e-3} allowSleep>
+          <Plane rotation={[-Math.PI / 2, 0, 0]} userData={{ id: 'floor' }} />
+          <Vehicle position={[0, 2, 0]} rotation={[0, -Math.PI / 4, 0]} angularVelocity={[0, 0.5, 0]} wheelRadius={0.3} />
+          <Pillar position={[-5, 2.5, -5]} userData={{ id: 'pillar-1' }} />
+          <Pillar position={[0, 2.5, -5]} userData={{ id: 'pillar-2' }} />
+          <Pillar position={[5, 2.5, -5]} userData={{ id: 'pillar-3' }} />
+        </Physics>
+        <Suspense fallback={null}>
+          <Environment preset="night" />
+        </Suspense>
+        <OrbitControls />
+      </Canvas>
+      <div style={{ position: 'absolute', top: 30, left: 40 }}>
+        <pre>
+          Must run fullscreen!
+          <br />
+          WASD to drive, space to brake
+          <br />R to reset
+        </pre>
+      </div>
+    </>
+  )
+}
+
+function Plane(props) {
+  const [ref] = usePlane(() => ({ type: 'Static', material: 'ground', ...props }))
+  return (
+    <group ref={ref}>
+      <mesh receiveShadow>
+        <planeGeometry args={[100, 100]} />
+        <meshStandardMaterial color="#303030" />
+      </mesh>
+    </group>
+  )
+}
+
+function Pillar({ args = [0.7, 0.7, 5, 16], ...props }) {
+  const [ref] = useCylinder(() => ({ mass: 10, args, ...props }))
+  return (
+    <mesh ref={ref} castShadow>
+      <cylinderGeometry args={args} />
+      <meshNormalMaterial />
+    </mesh>
+  )
 }
